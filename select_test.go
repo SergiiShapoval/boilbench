@@ -6,10 +6,10 @@ import (
 	"database/sql/driver"
 	"testing"
 
-	"gopkg.in/gorp.v1"
-	"gopkg.in/src-d/go-kallax.v1"
-
+	entsql "github.com/facebookincubator/ent/dialect/sql"
 	"github.com/jinzhu/gorm"
+	"github.com/volatiletech/boilbench/ent/entmodels"
+	"github.com/volatiletech/boilbench/ent/entmodels/jet"
 	"github.com/volatiletech/boilbench/gorms"
 	"github.com/volatiletech/boilbench/gorps"
 	"github.com/volatiletech/boilbench/kallaxes"
@@ -18,8 +18,31 @@ import (
 	sqlc "github.com/volatiletech/boilbench/sqlc/generated"
 	"github.com/volatiletech/boilbench/xorms"
 	"github.com/volatiletech/sqlboiler/queries/qm"
+	"gopkg.in/gorp.v1"
+	"gopkg.in/src-d/go-kallax.v1"
 	"xorm.io/xorm"
 )
+
+func BenchmarkEntSelectAll(b *testing.B) {
+	query := jetQuerySubset()
+	mimic.NewQuery(query)
+
+	drv, err := entsql.Open("mimic", "")
+	if err != nil {
+		panic(err)
+	}
+	client := entmodels.NewClient(entmodels.Driver(drv))
+	defer client.Close()
+
+	b.Run("ent", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_, err := client.Jet.Query().All(context.Background())
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
 
 func BenchmarkGORMSelectAll(b *testing.B) {
 	query := jetQuery()
@@ -157,6 +180,46 @@ func BenchmarkSqlcSelectAll(b *testing.B) {
 	})
 }
 
+func BenchmarkEntSelectSubset(b *testing.B) {
+	query := jetQuerySubset()
+	mimic.NewQuery(query)
+
+	drv, err := entsql.Open("mimic", "")
+	if err != nil {
+		panic(err)
+	}
+	client := entmodels.NewClient(entmodels.Driver(drv))
+	defer client.Close()
+
+	var v []struct {
+		ID         int     `json:"id,omitempty"`
+		Name       string  `json:"name,omitempty"`
+		Color      *string `json:"color,omitempty"`
+		UUID       string  `json:"uuid,omitempty"`
+		Identifier string  `json:"identifier,omitempty"`
+		Cargo      []byte  `json:"cargo,omitempty"`
+		Manifest   []byte  `json:"manifest,omitempty"`
+	}
+
+	b.Run("ent", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			err := client.Jet.Query().Select(
+				jet.FieldID,
+				jet.FieldName,
+				jet.FieldColor,
+				jet.FieldUUID,
+				jet.FieldIdentifier,
+				jet.FieldCargo,
+				jet.FieldManifest,
+			).Scan(context.Background(), &v)
+			if err != nil {
+				b.Fatal(err)
+			}
+			v = nil
+		}
+	})
+}
+
 func BenchmarkGORMSelectSubset(b *testing.B) {
 	var store []gorms.Jet
 	query := jetQuerySubset()
@@ -277,6 +340,57 @@ func BenchmarkBoilSelectSubset(b *testing.B) {
 	b.Run("boil", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			_, err = models.Jets(qm.Select("id, name, color, uuid, identifier, cargo, manifest")).All(db)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
+
+func BenchmarkEntSelectComplex(b *testing.B) {
+	b.Skip("currently throws `sql: expected 0 arguments, got 4`")
+	query := jetQuerySubset()
+	mimic.NewQuery(query)
+
+	drv, err := entsql.Open("mimic", "")
+	if err != nil {
+		panic(err)
+	}
+	client := entmodels.NewClient(entmodels.Driver(drv))
+	defer client.Close()
+
+	var v []struct {
+		ID         int     `json:"id,omitempty"`
+		Name       string  `json:"name,omitempty"`
+		Color      *string `json:"color,omitempty"`
+		UUID       string  `json:"uuid,omitempty"`
+		Identifier string  `json:"identifier,omitempty"`
+		Cargo      []byte  `json:"cargo,omitempty"`
+		Manifest   []byte  `json:"manifest,omitempty"`
+	}
+
+	b.Run("ent", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			err := client.Jet.
+				Query().
+				Where(
+					jet.And(
+						jet.IDGT(1),
+						jet.NameNEQ("thing"),
+					),
+				).
+				Limit(1).
+				Offset(1).
+				Select(
+					jet.FieldID,
+					jet.FieldName,
+					jet.FieldColor,
+					jet.FieldUUID,
+					jet.FieldIdentifier,
+					jet.FieldCargo,
+					jet.FieldManifest,
+				).
+				Scan(context.Background(), &v)
 			if err != nil {
 				b.Fatal(err)
 			}

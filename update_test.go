@@ -6,7 +6,9 @@ import (
 	"database/sql/driver"
 	"testing"
 
+	entsql "github.com/facebookincubator/ent/dialect/sql"
 	"github.com/jinzhu/gorm"
+	"github.com/volatiletech/boilbench/ent/entmodels"
 	"github.com/volatiletech/boilbench/gorms"
 	"github.com/volatiletech/boilbench/gorps"
 	"github.com/volatiletech/boilbench/kallaxes"
@@ -18,6 +20,35 @@ import (
 	gorp "gopkg.in/gorp.v1"
 	"xorm.io/xorm"
 )
+
+func BenchmarkEntUpdate(b *testing.B) {
+	b.Skip("ent does additional select queries, fails with `statement was not a query type`")
+
+	exec := jetExecUpdate()
+	exec.NumInput = -1
+	mimic.NewResult(exec)
+
+	drv, err := entsql.Open("mimic", "")
+	if err != nil {
+		panic(err)
+	}
+	client := entmodels.NewClient(entmodels.Driver(drv))
+	defer client.Close()
+
+	store, err := client.Jet.Create().SetID(1).Save(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	b.Run("gorm", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_, err := store.Update().SetName("").Save(context.Background())
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
 
 func BenchmarkGORMUpdate(b *testing.B) {
 	store := gorms.Jet{

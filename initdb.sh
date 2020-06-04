@@ -24,8 +24,11 @@ go get github.com/volatiletech/sqlboiler
 # Install SQLBoiler PSQL driver
 go get -u -t github.com/volatiletech/sqlboiler/drivers/sqlboiler-psql
 
-# Generate models
+# Generate sqlboiler models
 sqlboiler --wipe --no-context --output ./models psql -t "db"
 
 # Generate sqlc models
 go generate ./sqlc
+
+# Generate ent models
+go generate ./ent

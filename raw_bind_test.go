@@ -19,6 +19,10 @@ import (
 	"xorm.io/xorm"
 )
 
+func BenchmarkEntRawBind(b *testing.B) {
+	b.Skip("currently require use of sql driver directly, see https://github.com/facebookincubator/ent/issues/85")
+}
+
 func BenchmarkGORMRawBind(b *testing.B) {
 	query := jetQuery()
 	mimic.NewQuery(query)

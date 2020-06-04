@@ -5,6 +5,7 @@ go 1.14
 require (
 	github.com/DATA-DOG/go-sqlmock v1.4.1 // indirect
 	github.com/Masterminds/squirrel v1.4.0 // indirect
+	github.com/facebookincubator/ent v0.2.2
 	github.com/friendsofgo/errors v0.9.2
 	github.com/gofrs/uuid v3.3.0+incompatible // indirect
 	github.com/jcmturner/gokrb5/v8 v8.3.0 // indirect

@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"testing"
 
+	entsql "github.com/facebookincubator/ent/dialect/sql"
 	"github.com/jinzhu/gorm"
+	"github.com/volatiletech/boilbench/ent/entmodels"
 	"github.com/volatiletech/boilbench/gorms"
 	"github.com/volatiletech/boilbench/gorps"
 	"github.com/volatiletech/boilbench/kallaxes"
@@ -18,6 +20,28 @@ import (
 	"gopkg.in/src-d/go-kallax.v1"
 	"xorm.io/xorm"
 )
+
+func BenchmarkEntInsert(b *testing.B) {
+	exec := jetExec()
+	exec.NumInput = -1
+	mimic.NewResult(exec)
+
+	driver, err := entsql.Open("mimic", "")
+	if err != nil {
+		panic(err)
+	}
+	client := entmodels.NewClient(entmodels.Driver(driver))
+	defer client.Close()
+
+	b.Run("ent", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_, err := client.Jet.Create().SetID(1).Save(context.Background())
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
 
 func BenchmarkGORMInsert(b *testing.B) {
 	store := gorms.Jet{

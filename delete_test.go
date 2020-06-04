@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	"database/sql"
+	"log"
 	"testing"
 
+	entsql "github.com/facebookincubator/ent/dialect/sql"
 	"github.com/jinzhu/gorm"
+	"github.com/volatiletech/boilbench/ent/entmodels"
 	"github.com/volatiletech/boilbench/gorms"
 	"github.com/volatiletech/boilbench/gorps"
 	"github.com/volatiletech/boilbench/kallaxes"
@@ -16,6 +19,30 @@ import (
 	"gopkg.in/gorp.v1"
 	"xorm.io/xorm"
 )
+
+func BenchmarkEntDelete(b *testing.B) {
+	store := entmodels.Jet{ID: 1}
+
+	exec := jetExec()
+	exec.NumInput = -1
+	mimic.NewResult(exec)
+
+	drv, err := entsql.Open("mimic", "")
+	if err != nil {
+		log.Fatal(err)
+	}
+	client := entmodels.NewClient(entmodels.Driver(drv))
+	defer client.Close()
+
+	b.Run("ent", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			err := client.Jet.DeleteOne(&store).Exec(context.Background())
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
 
 func BenchmarkGORMDelete(b *testing.B) {
 	store := gorms.Jet{
